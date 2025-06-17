@@ -29,6 +29,6 @@ $username = $username ?? '';
 		<button type="submit">Login</button>
 	</form>
 
-	<p>No account? <a href="/Register">Register here</a></p>
+	<p>No account ? <a href="/Register">Register here</a></p>
 </body>
 </html>
