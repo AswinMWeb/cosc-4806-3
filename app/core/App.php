@@ -1,71 +1,49 @@
 <?php
-
 class App {
-
-    protected $controller = 'login';
-    protected $method = 'index';
-    protected $special_url = ['apply'];
-    protected $params = [];
+    protected $controller = 'Login';
+    protected $method     = 'index';
+    protected $params     = [];
 
     public function __construct() {
-        if (isset($_SESSION['auth']) == 1) {
-            //$this->method = 'index';
-            $this->controller = 'home';
-        } 
-
-        // This will return a broken up URL
-        // it will be /controller/method
-        $url = $this->parseUrl();
-
-        /* if controller exists in the URL, then go to it
-         * if not, then go to this->controller which is defaulted to home 
-         */
-
-        if (file_exists('app/controllers/' . $url[1] . '.php')) {
-            $this->controller = $url[1];
-
-            $_SESSION['controller'] = $this->controller;
-
-            /* This is if we have a special URL in the index.
-             * For example, our apply page is public and in the index method
-             * We do not want the method to be login in this case, but instead index
-             * 
-             */
-            if (in_array($this->controller, $this->special_url)) { 
-              $this->method = 'index';
-            }
-            unset($url[1]);
-        } else {
-            header('Location: /home');
-            die;
+       
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
         }
 
-        require_once 'app/controllers/' . $this->controller . '.php';
+        
+        $uri      = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $trimmed  = trim($uri, '/');
+        $segments = $trimmed === ''
+            ? []
+            : array_values(array_filter(explode('/', $trimmed), 'strlen'));
 
+      
+        if (isset($segments[0]) && $segments[0] !== '') {
+            $cand = ucfirst(strtolower($segments[0]));
+            $file = __DIR__ . '/../controllers/' . $cand . '.php';
+            if (is_file($file)) {
+                $this->controller = $cand;
+                array_shift($segments);
+            }
+        }
+
+        
+        require_once __DIR__ . '/../controllers/' . $this->controller . '.php';
         $this->controller = new $this->controller;
 
-        // check to see if method is passed
-        // check to see if it exists
-        if (isset($url[2])) {
-            if (method_exists($this->controller, $url[2])) {
-                $this->method = $url[2];
-                $_SESSION['method'] = $this->method;
-                unset($url[2]);
-            }
+        
+        if (isset($segments[0]) && method_exists($this->controller, $segments[0])) {
+            $this->method = $segments[0];
+            array_shift($segments);
         }
 
-        // This will rebase the params to a new array (starting at 0)
-        // if params exist
-        $this->params = $url ? array_values($url) : [];
-        call_user_func_array([$this->controller, $this->method], $this->params);		
-    }
+       
+        $this->params = $segments;
 
-    public function parseUrl() {
-        $u = "{$_SERVER['REQUEST_URI']}";
-        //trims the trailing forward slash (rtrim), sanitizes URL, explode it by forward slash to get elements
-        $url = explode('/', filter_var(rtrim($u, '/'), FILTER_SANITIZE_URL));
-		unset($url[0]);
-		return $url;
+  
+        call_user_func_array(
+            [ $this->controller, $this->method ],
+            $this->params
+        );
     }
-
 }
